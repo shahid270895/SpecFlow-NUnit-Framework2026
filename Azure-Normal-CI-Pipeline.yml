@@ -114,4 +114,4 @@ steps:
   condition: always()
   inputs:
     targetPath: Reports
-    artifact: Reports
+    artifact: 'Reports-$(Build.BuildId)'
