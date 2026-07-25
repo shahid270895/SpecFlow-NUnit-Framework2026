@@ -11,7 +11,7 @@ schedules:
 
   branches:
     include:
-      - main
+      - shahidQA
 
   always: true
 
