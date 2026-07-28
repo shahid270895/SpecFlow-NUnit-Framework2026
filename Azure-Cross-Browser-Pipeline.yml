@@ -100,6 +100,7 @@ jobs:
               --configuration $(BuildConfiguration) `
               --no-build `
               --logger "trx;LogFileName=$(Browser).trx"
+              --collect:"XPlat Code Coverage"
       }
       else
       {
@@ -107,10 +108,12 @@ jobs:
               --configuration $(BuildConfiguration) `
               --no-build `
               --logger "trx;LogFileName=$(Browser).trx" `
+              --collect:"XPlat Code Coverage" `
               --filter "Category=${{ parameters.testCategory }}"
       }
 
     displayName: Execute Tests
+    continueOnError: true
 
   - task: PublishTestResults@2
     displayName: Publish Test Results
@@ -118,13 +121,23 @@ jobs:
     inputs:
       testResultsFormat: VSTest
       testResultsFiles: '**/$(Browser).trx'
-      mergeTestResults: false
-      failTaskOnFailedTests: false
+      mergeTestResults: true
+      failTaskOnFailedTests: true
       testRunTitle: '$(Browser) Test Execution'
 
   - task: PublishPipelineArtifact@1
     displayName: Publish Reports
     condition: always()
     inputs:
-      targetPath: Reports
+      targetPath: '$(Build.SourcesDirectory)/Reports'
       artifact: Reports-$(Browser)
+
+
+  - task: PublishCodeCoverageResults@2
+    displayName: Publish Code Coverage
+    condition: always()
+    inputs:
+      summaryFileLocation: '$(Agent.TempDirectory)/**/coverage.cobertura.xml'
+      pathToSources: '$(Build.SourcesDirectory)'
+      failIfCoverageEmpty: false
+ 
