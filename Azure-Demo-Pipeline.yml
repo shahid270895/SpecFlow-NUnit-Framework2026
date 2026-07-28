@@ -40,7 +40,7 @@ steps:
 
 # Publish Test Results
 - task: DotNetCoreCLI@2
-  displayName: Run NUnit Tests
+  displayName: Run Test Scripts
   inputs:
     command: test
     projects: '**/*.csproj'
