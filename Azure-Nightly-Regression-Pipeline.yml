@@ -11,12 +11,14 @@ schedules:
 
   branches:
     include:
-      - main
+      - shahidQA
 
   always: true
 
 pool:
   vmImage: windows-latest
+  # For Self Hosted Agent use:
+  # name: AutomationPool-20-07-26
 
 variables:
 
@@ -31,6 +33,7 @@ variables:
 steps:
 
 - checkout: self
+  clean: true
 
 - task: UseDotNet@2
   displayName: Install .NET SDK
@@ -62,6 +65,9 @@ steps:
     Write-Host "Environment    : $(Environment)"
     Write-Host "Category       : Regression"
     Write-Host "Headless       : $(Headless)"
+    Write-Host "Agent          : $(Agent.Name)"
+    Write-Host "Machine        : $(Agent.MachineName)"
+    Write-Host "========================================"
 
     $env:Browser="$(Browser)"
     $env:Environment="$(Environment)"
@@ -75,6 +81,8 @@ steps:
 
   displayName: Execute Regression Suite
 
+  continueOnError: true
+
 - task: PublishTestResults@2
   displayName: Publish Test Results
   condition: always()
@@ -82,10 +90,12 @@ steps:
   inputs:
     testResultsFormat: VSTest
     testResultsFiles: '**/NightlyRegression.trx'
+    mergeTestResults: true
     failTaskOnFailedTests: false
     testRunTitle: Nightly Regression
 
 - powershell: |
+
     $reportPath = "$(Build.SourcesDirectory)\Reports"
 
     if (Test-Path $reportPath)
@@ -103,7 +113,7 @@ steps:
   condition: always()
 
 - task: PublishPipelineArtifact@1
-  displayName: Publish Reports
+  displayName: Publish Extent Reports
   condition: and(always(), eq(variables['ReportsExist'], 'true'))
 
   inputs:

@@ -1,25 +1,18 @@
+
 trigger: none
 
 parameters:
-
 - name: environment
   displayName: Environment
   type: string
   default: QA
-  values:
-    - QA
-    - Staging
-    - Production
+  values: [QA, Staging, Production]
 
 - name: testCategory
   displayName: Test Category
   type: string
   default: All
-  values:
-    - All
-    - Smoke
-    - Regression
-    - Sanity
+  values: [All, Smoke, Regression, Sanity]
 
 - name: headless
   displayName: Headless
@@ -30,29 +23,24 @@ variables:
   BuildConfiguration: Release
 
 jobs:
-
 - job: CrossBrowserExecution
-
   displayName: Cross Browser Execution
 
   strategy:
-
     matrix:
-
       Chrome:
         Browser: Chrome
-
       Firefox:
         Browser: Firefox
-
       Edge:
         Browser: Edge
 
   pool:
     vmImage: windows-latest
+    # For self-hosted replace with:
+    # name: AutomationPool-20-07-26
 
   steps:
-
   - checkout: self
     clean: true
 
@@ -76,18 +64,11 @@ jobs:
       arguments: '--configuration $(BuildConfiguration) --no-restore'
 
   - powershell: |
-
-      Write-Host ""
       Write-Host "========================================"
-      Write-Host " CROSS BROWSER EXECUTION "
-      Write-Host "========================================"
-
       Write-Host "Browser      : $(Browser)"
       Write-Host "Environment  : ${{ parameters.environment }}"
       Write-Host "Category     : ${{ parameters.testCategory }}"
       Write-Host "Headless     : ${{ parameters.headless }}"
-      Write-Host "Agent        : $(Agent.Name)"
-      Write-Host "Machine      : $(Agent.MachineName)"
       Write-Host "========================================"
 
       $env:Browser="$(Browser)"
@@ -109,8 +90,8 @@ jobs:
               --logger "trx;LogFileName=$(Browser).trx" `
               --filter "Category=${{ parameters.testCategory }}"
       }
-
     displayName: Execute Tests
+    continueOnError: true
 
   - task: PublishTestResults@2
     displayName: Publish Test Results
@@ -118,13 +99,29 @@ jobs:
     inputs:
       testResultsFormat: VSTest
       testResultsFiles: '**/$(Browser).trx'
-      mergeTestResults: false
-      failTaskOnFailedTests: false
+      mergeTestResults: true
+      failTaskOnFailedTests: true
       testRunTitle: '$(Browser) Test Execution'
 
+  - powershell: |
+      if (!(Test-Path "$(Build.SourcesDirectory)\Reports"))
+      {
+          New-Item -ItemType Directory -Path "$(Build.SourcesDirectory)\Reports" | Out-Null
+      }
+    displayName: Ensure Reports Folder Exists
+    condition: always()
+
   - task: PublishPipelineArtifact@1
-    displayName: Publish Reports
+    displayName: Publish Extent Reports
     condition: always()
     inputs:
-      targetPath: Reports
-      artifact: Reports-$(Browser)
+      targetPath: '$(Build.SourcesDirectory)\Reports'
+      artifact: 'Reports-$(Browser)'
+
+  - powershell: |
+      if (Test-Path "$(Build.SourcesDirectory)\Reports\Screenshots")
+      {
+          Write-Host "Screenshots found."
+      }
+    displayName: Verify Screenshots
+    condition: always()
