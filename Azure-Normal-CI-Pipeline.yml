@@ -41,6 +41,8 @@ parameters:
 
 pool:
   vmImage: windows-latest
+  # For Self Hosted Agent use:
+  # name: AutomationPool-20-07-26
 
 variables:
   BuildConfiguration: Release
@@ -48,6 +50,7 @@ variables:
 steps:
 
 - checkout: self
+  clean: true
 
 - task: UseDotNet@2
   displayName: Install .NET SDK
@@ -66,17 +69,22 @@ steps:
   inputs:
     command: build
     projects: SpecFlowAutomationFramework.csproj
-    arguments: --configuration $(BuildConfiguration) --no-restore
+    arguments: '--configuration $(BuildConfiguration) --no-restore'
 
 - powershell: |
 
+    Write-Host ""
     Write-Host "==========================================="
-    Write-Host "Azure Pipeline Execution"
+    Write-Host " AZURE DEVOPS CI PIPELINE "
     Write-Host "==========================================="
+
     Write-Host "Browser      : ${{ parameters.browser }}"
     Write-Host "Environment  : ${{ parameters.environment }}"
     Write-Host "Headless     : ${{ parameters.headless }}"
     Write-Host "Category     : ${{ parameters.testCategory }}"
+    Write-Host "Agent        : $(Agent.Name)"
+    Write-Host "Machine      : $(Agent.MachineName)"
+
     Write-Host "==========================================="
 
     $env:Browser="${{ parameters.browser }}"
@@ -88,30 +96,53 @@ steps:
         dotnet test SpecFlowAutomationFramework.csproj `
             --configuration $(BuildConfiguration) `
             --no-build `
-            --logger trx
+            --logger "trx;LogFileName=TestResults.trx"
     }
     else
     {
         dotnet test SpecFlowAutomationFramework.csproj `
             --configuration $(BuildConfiguration) `
             --no-build `
-            --logger trx `
+            --logger "trx;LogFileName=TestResults.trx" `
             --filter "Category=${{ parameters.testCategory }}"
     }
 
   displayName: Execute NUnit Tests
+  continueOnError: true
 
 - task: PublishTestResults@2
   displayName: Publish Test Results
   condition: always()
+
   inputs:
     testResultsFormat: VSTest
-    testResultsFiles: '**/*.trx'
+    testResultsFiles: '**/TestResults.trx'
+    mergeTestResults: true
     failTaskOnFailedTests: false
+    testRunTitle: CI Test Execution
+
+- powershell: |
+
+    $reportPath = "$(Build.SourcesDirectory)\Reports"
+
+    if (Test-Path $reportPath)
+    {
+        Write-Host "Reports folder found."
+        Write-Host "##vso[task.setvariable variable=ReportsExist]true"
+    }
+    else
+    {
+        Write-Host "Reports folder not found."
+        Write-Host "##vso[task.setvariable variable=ReportsExist]false"
+    }
+
+  displayName: Check Reports Folder
+  condition: always()
 
 - task: PublishPipelineArtifact@1
-  displayName: Publish Reports
-  condition: always()
+  displayName: Publish Extent Reports
+  condition: and(always(), eq(variables['ReportsExist'], 'true'))
+
   inputs:
-    targetPath: Reports
+    targetPath: '$(Build.SourcesDirectory)\Reports'
     artifact: 'Reports-$(Build.BuildId)'
