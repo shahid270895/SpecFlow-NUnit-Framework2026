@@ -107,7 +107,7 @@ steps:
             --filter "Category=${{ parameters.testCategory }}"
     }
 
-  displayName: Execute NUnit Tests
+  displayName: Execute Test Scripts
   continueOnError: true
 
 - task: PublishTestResults@2
